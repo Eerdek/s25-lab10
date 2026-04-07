@@ -1,73 +1,90 @@
-import React, { useState } from 'react'
-import './Quiz.css'
+import React, { useRef, useState } from 'react';
+import './Quiz.css';
 import QuizQuestion from '../core/QuizQuestion';
-
-interface QuizState {
-  questions: QuizQuestion[]
-  currentQuestionIndex: number
-  selectedAnswer: string | null
-  score: number
-}
+import QuizCore from '../core/QuizCore';
 
 const Quiz: React.FC = () => {
-  const initialQuestions: QuizQuestion[] = [
-    {
-      question: 'What is the capital of France?',
-      options: ['London', 'Berlin', 'Paris', 'Madrid'],
-      correctAnswer: 'Paris',
-    },
-  ];
-  const [state, setState] = useState<QuizState>({
-    questions: initialQuestions,
-    currentQuestionIndex: 0,  // Initialize the current question index.
-    selectedAnswer: null,  // Initialize the selected answer.
-    score: 0,  // Initialize the score.
-  });
+  const quizCoreRef = useRef<QuizCore>(new QuizCore());
+  const quizCore = quizCoreRef.current;
+
+  const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(() => quizCore.getCurrentQuestion());
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [questionNumber, setQuestionNumber] = useState<number>(1);
+  const [quizCompleted, setQuizCompleted] = useState<boolean>(() => quizCore.getCurrentQuestion() === null);
+
+  const totalQuestions = quizCore.getTotalQuestions();
+  const isLastQuestion = currentQuestion ? !quizCore.hasNextQuestion() : false;
 
   const handleOptionSelect = (option: string): void => {
-    setState((prevState) => ({ ...prevState, selectedAnswer: option }));
-  }
-
+    setSelectedAnswer(option);
+  };
 
   const handleButtonClick = (): void => {
-    // Task3: Implement the logic for button click, such as moving to the next question.
-  } 
+    if (!currentQuestion || !selectedAnswer) {
+      return;
+    }
 
-  const { questions, currentQuestionIndex, selectedAnswer, score } = state;
-  const currentQuestion = questions[currentQuestionIndex];
+    quizCore.answerQuestion(selectedAnswer);
+
+    if (quizCore.hasNextQuestion()) {
+      quizCore.nextQuestion();
+      setCurrentQuestion(quizCore.getCurrentQuestion());
+      setSelectedAnswer(null);
+      setQuestionNumber((prevQuestionNumber) => prevQuestionNumber + 1);
+      return;
+    }
+
+    setQuizCompleted(true);
+    setCurrentQuestion(null);
+  };
+
+  if (quizCompleted) {
+    return (
+      <section className="quiz quiz-result">
+        <h2>Quiz Completed</h2>
+        <p className="result-score">
+          Final Score: {quizCore.getScore()} out of {totalQuestions}
+        </p>
+      </section>
+    );
+  }
 
   if (!currentQuestion) {
     return (
-      <div>
-        <h2>Quiz Completed</h2>
-        <p>Final Score: {score} out of {questions.length}</p>
-      </div>
+      <section className="quiz quiz-result">
+        <h2>No Questions Available</h2>
+      </section>
     );
   }
 
   return (
-    <div>
-      <h2>Quiz Question:</h2>
-      <p>{currentQuestion.question}</p>
-    
-      <h3>Answer Options:</h3>
-      <ul>
+    <section className="quiz">
+      <h2>Quiz Question {questionNumber}</h2>
+      <p className="question-text">{currentQuestion.question}</p>
+
+      <h3>Answer Options</h3>
+      <ul className="answer-list">
         {currentQuestion.options.map((option) => (
-          <li
-            key={option}
-            onClick={() => handleOptionSelect(option)}
-            className={selectedAnswer === option ? 'selected' : ''}
-          >
-            {option}
+          <li key={option}>
+            <button
+              type="button"
+              onClick={() => handleOptionSelect(option)}
+              className={`answer-option ${selectedAnswer === option ? 'selected' : ''}`}
+            >
+              {option}
+            </button>
           </li>
         ))}
       </ul>
 
-      <h3>Selected Answer:</h3>
-      <p>{selectedAnswer ?? 'No answer selected'}</p>
+      <p className="selected-answer">
+        Selected Answer: <strong>{selectedAnswer ?? 'No answer selected'}</strong>
+      </p>
 
-      <button onClick={handleButtonClick}>Next Question</button>
-    </div>
+      <button type="button" onClick={handleButtonClick} disabled={!selectedAnswer}>
+        {isLastQuestion ? 'Submit' : 'Next Question'}
+      </button>
+    </section>
   );
 };
 
